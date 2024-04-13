@@ -4,6 +4,7 @@ const multer = require("multer");
 const upload = multer({
   limits: { fileSize: 2000000 },
 });
+const { Buffer } = require("node:buffer");
 
 const Image = require("../models/image");
 
@@ -74,3 +75,24 @@ exports.image_post = [
     next(err);
   },
 ];
+
+exports.image_get = asyncHandler(async (req, res, next) => {
+  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+    const err = new Error("Image not found");
+    err.status = 404;
+    return next(err);
+  }
+
+  const image = await Image.findById(req.params.id).exec();
+
+  if (image === null) {
+    const err = new Error("Image not found");
+    err.status = 404;
+    return next(err);
+  }
+
+  return res.json({
+    message: "Success",
+    image: `data:${image.mimetype};base64,${image.base64_string}`,
+  });
+});

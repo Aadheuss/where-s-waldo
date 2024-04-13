@@ -13,4 +13,8 @@ ImageSchema.virtual("url").get(function () {
   return `/image/${this._id}`;
 });
 
+ImageSchema.virtual("base64_string").get(function () {
+  return Buffer.from(this.buffer).toString("base64");
+});
+
 module.exports = mongoose.model("Image", ImageSchema);
