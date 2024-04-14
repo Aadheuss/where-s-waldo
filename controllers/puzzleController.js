@@ -1,10 +1,11 @@
 const asyncHandler = require("express-async-handler");
-const { check, validationResult } = require("express-validator");
+const { body, check, validationResult } = require("express-validator");
 const multer = require("multer");
 const upload = multer({
   limits: { fileSize: 2000000 },
 });
 
+const Puzzle = require("../models/puzzle");
 const Image = require("../models/image");
 
 const imageMimetype = [
@@ -14,9 +15,14 @@ const imageMimetype = [
   "image/svg+xml",
 ];
 
-exports.image_post = [
+exports.puzzle_post = [
   upload.single("uploaded_image"),
   (req, res, next) => {
+    if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+      const err = new Error("Can't upload puzzle on non-existent image");
+      err.status = 404;
+      return next(err);
+    }
     if (!req.file) {
       return res.status(400).json({
         message: "No file to be uploaded!",
@@ -25,6 +31,19 @@ exports.image_post = [
     }
     next();
   },
+  body("name", "Name can't be empty").trim().isLength({ min: 1 }).escape(),
+  body("coordinatex", "Coordinate X can't be empty")
+    .trim()
+    .isLength({ min: 1 })
+    .isNumeric()
+    .withMessage("Coordinate X must only contains numbers")
+    .escape(),
+  body("coordinatey", "Coordinate Y can't be empty")
+    .trim()
+    .isLength({ min: 1 })
+    .isNumeric()
+    .withMessage("Coordinate Y must only contains numbers")
+    .escape(),
   check("mimetype")
     .custom(async (value, { req }) => {
       if (imageMimetype.includes(req.file.mimetype)) {
@@ -34,6 +53,7 @@ exports.image_post = [
       }
     })
     .withMessage("Please only submit jpeg, png, or svg file!"),
+
   asyncHandler(async (req, res, next) => {
     const errors = validationResult(req);
 
@@ -53,14 +73,27 @@ exports.image_post = [
       });
     }
 
-    const imageInstance = new Image({
-      name: req.file.originalname,
+    const image = await Image.findOne(
+      { _id: req.params.id },
+      "_id name mimetype size"
+    ).exec();
+
+    if (image === null) {
+      const err = new Error("Can't upload puzzle on non-existent image");
+      err.status = 404;
+      return next(err);
+    }
+
+    const puzzle = new Puzzle({
+      name: req.body.name,
       mimetype: req.file.mimetype,
       buffer: req.file.buffer,
       size: req.file.size,
+      coordinates: `${req.body.coordinatex},${req.body.coordinatey}`,
+      image: req.params.id,
     });
 
-    await imageInstance.save();
+    await puzzle.save();
 
     res.json({
       message: "Successfully uploaded the file",
@@ -75,23 +108,10 @@ exports.image_post = [
   },
 ];
 
-exports.image_get = asyncHandler(async (req, res, next) => {
-  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
-    const err = new Error("Image not found");
-    err.status = 404;
-    return next(err);
-  }
+exports.solution_post = (req, res, next) => {
+  console.log({ body: req.body });
 
-  const image = await Image.findById(req.params.id).exec();
-
-  if (image === null) {
-    const err = new Error("Image not found");
-    err.status = 404;
-    return next(err);
-  }
-
-  return res.json({
-    message: "Success",
-    image: `data:${image.mimetype};base64,${image.base64_string}`,
+  res.json({
+    message: success,
   });
-});
+};
