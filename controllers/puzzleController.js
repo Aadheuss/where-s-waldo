@@ -108,6 +108,37 @@ exports.puzzle_post = [
   },
 ];
 
+exports.puzzles_get = asyncHandler(async (req, res, next) => {
+  if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
+    const err = new Error("Can't find puzzle on non-existent image");
+    err.status = 404;
+    return next(err);
+  }
+
+  const image = await Image.findOne({ _id: req.params.id }, "name").exec();
+
+  if (image === null) {
+    const err = new Error("Can't find puzzle on non-existent image");
+    err.status = 404;
+    return next(err);
+  }
+
+  const puzzles = await Puzzle.find({ image: req.params.id }).exec();
+  return res.json({
+    message: "Success",
+    puzzles:
+      puzzles.length > 0
+        ? puzzles.map((puzzle) => {
+            return {
+              name: puzzle.name,
+              coordinates: puzzle.coordinates,
+              image: `data:${puzzle.mimetype};base64,${puzzle.base64_string}`,
+            };
+          })
+        : [],
+  });
+});
+
 exports.solution_post = (req, res, next) => {
   console.log({ body: req.body });
 

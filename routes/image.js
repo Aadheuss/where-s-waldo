@@ -12,4 +12,6 @@ router.get("/:id", imageController.image_get);
 
 router.post("/:id/puzzle", puzzleController.puzzle_post);
 
+router.get("/:id/puzzles", puzzleController.puzzles_get);
+
 module.exports = router;
